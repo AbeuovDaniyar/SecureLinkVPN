@@ -1,0 +1,156 @@
+<Window x:Class="SecureLink.Client.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SecureLink" Height="600" Width="340"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanMinimize"
+        Background="#16161E">
+    <Window.Resources>
+        <!-- Palette + TitleBarButtonStyle/RegionArrowButtonStyle come from Theme.xaml
+             (merged in App.xaml) — only window-specific resources live here. -->
+        <Storyboard x:Key="SpinStoryboard" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="SpinnerRotate" Storyboard.TargetProperty="Angle"
+                             From="0" To="360" Duration="0:0:1.1"/>
+        </Storyboard>
+
+        <Storyboard x:Key="PulseStoryboard" RepeatBehavior="Forever" AutoReverse="True">
+            <DoubleAnimation Storyboard.TargetName="GlowEllipse" Storyboard.TargetProperty="Opacity"
+                             From="0.2" To="0.6" Duration="0:0:1"/>
+        </Storyboard>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Custom title bar -->
+        <Grid Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <TextBlock Text="SecureLink" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"
+                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Content="&#xE921;" FontFamily="Segoe MDL2 Assets" Width="32" Height="32"
+                        Style="{StaticResource TitleBarButtonStyle}" Click="Minimize_Click"/>
+                <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Width="32" Height="32"
+                        Style="{StaticResource TitleBarButtonStyle}" Click="Close_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="SecureLink" FontSize="22" FontWeight="Bold"
+                   Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,4,0,2"/>
+
+        <TextBlock x:Name="StatusText" Grid.Row="2" Text="Disconnected" FontSize="14" FontWeight="SemiBold"
+                   Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+
+        <!-- Power button -->
+        <Grid Grid.Row="3" Width="180" Height="180" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Ellipse x:Name="GlowEllipse" Width="180" Height="180" Opacity="0">
+                <Ellipse.Effect>
+                    <DropShadowEffect x:Name="GlowEffect" Color="{StaticResource AccentColor}" BlurRadius="45" ShadowDepth="0" Opacity="0.85"/>
+                </Ellipse.Effect>
+                <Ellipse.Fill>
+                    <SolidColorBrush Color="Transparent"/>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <Ellipse Width="160" Height="160" Stroke="{StaticResource TrackBrush}" StrokeThickness="4"/>
+
+            <Ellipse x:Name="SpinnerRing" Width="160" Height="160" Stroke="{StaticResource AccentBrush}"
+                     StrokeThickness="4" StrokeDashArray="16 10" StrokeDashCap="Round"
+                     Visibility="Collapsed" RenderTransformOrigin="0.5,0.5">
+                <Ellipse.RenderTransform>
+                    <RotateTransform x:Name="SpinnerRotate" Angle="0"/>
+                </Ellipse.RenderTransform>
+            </Ellipse>
+
+            <Ellipse x:Name="ConnectedRing" Width="160" Height="160" Stroke="{StaticResource AccentBrush}"
+                     StrokeThickness="4" Visibility="Collapsed"/>
+
+            <Ellipse Width="140" Height="140" Fill="{StaticResource PanelBrush}"/>
+
+            <TextBlock x:Name="PowerIcon" Text="&#x23FB;" FontSize="52"
+                       Foreground="{StaticResource MutedBrush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <Button x:Name="ConnectButton" Width="180" Height="180" Background="Transparent"
+                    BorderThickness="0" Cursor="Hand" Click="ConnectButton_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent"/>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Grid>
+
+        <!-- Region selector -->
+        <StackPanel Grid.Row="4" Margin="0,4,0,0">
+            <TextBlock Text="Connect to:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+            <Grid HorizontalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="PrevRegionButton" Grid.Column="0" Content="‹"
+                        Style="{StaticResource RegionArrowButtonStyle}" Click="PrevRegion_Click"/>
+                <Border Grid.Column="1" Background="{StaticResource PanelBrush}" CornerRadius="18"
+                        BorderBrush="{StaticResource TrackBrush}" BorderThickness="1"
+                        Padding="18,8" Margin="6,0" MinWidth="190">
+                    <TextBlock x:Name="RegionLabel" Text="🇺🇸 Virginia (US-East)" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                </Border>
+                <Button x:Name="NextRegionButton" Grid.Column="2" Content="›"
+                        Style="{StaticResource RegionArrowButtonStyle}" Click="NextRegion_Click"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Stats -->
+        <Border Grid.Row="5" Background="{StaticResource PanelBrush}" CornerRadius="10" Margin="24,16,24,0" Padding="12,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                    <TextBlock Text="↓ DOWN" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="DownloadedText" Text="0 B" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                    <TextBlock Text="↑ UP" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="UploadedText" Text="0 B" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <TextBlock Text="⏱ TIME" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="DurationText" Text="00:00:00" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="6" Background="{StaticResource PanelBrush}" CornerRadius="10" Margin="24,16,24,0" Padding="14,12">
+            <StackPanel>
+                <TextBlock Text="Did you know?" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0">
+                    <Run Text="This connection uses the "/><Run Text="WireGuard" Foreground="{StaticResource AccentBrush}" FontWeight="Bold"/><Run Text=" protocol — fast, modern, and open source."/>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <TextBlock x:Name="LogText" Grid.Row="7" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"
+                   TextWrapping="Wrap" Margin="24,10,24,16" HorizontalAlignment="Center" TextAlignment="Center"/>
+    </Grid>
+</Window>

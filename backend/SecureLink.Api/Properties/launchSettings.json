@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "SecureLink.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:53137;http://localhost:53138"
+    }
+  }
+}
