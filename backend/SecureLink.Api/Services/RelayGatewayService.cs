@@ -84,8 +84,7 @@ public class RelayGatewayService : IRelayGatewayService
             if (!response.IsSuccessStatusCode)
             {
                 // Log but don't throw — disconnect should still succeed locally even if
-                // the relay is briefly unreachable; a stale peer just means the session
-                // record and the relay's peer table can drift, which Phase 6 cleanup handles.
+                // the relay is briefly unreachable;
                 _logger.LogWarning("Failed to remove peer on relay {Region}: {Status}", relay.Region, response.StatusCode);
             }
         }

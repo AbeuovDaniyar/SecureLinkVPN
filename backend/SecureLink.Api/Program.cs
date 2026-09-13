@@ -30,10 +30,6 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    // Without this, the handler remaps registered claim names on the way in
-    // (JwtRegisteredClaimNames.Sub -> ClaimTypes.NameIdentifier, etc.), so
-    // User.FindFirstValue(JwtRegisteredClaimNames.Sub) in SessionsController
-    // comes back null even though the token has a "sub" claim.
     options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {

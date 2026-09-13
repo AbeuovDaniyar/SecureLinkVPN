@@ -5,17 +5,13 @@ namespace SecureLink.Client.Services;
 /// <summary>
 /// Blocks all outbound traffic except the VPN tunnel while connected, using
 /// `netsh advfirewall`. If the tunnel drops, this is what stops other traffic from
-/// silently falling back to the raw internet connection (SDD Section 3.3).
+/// silently falling back to the raw internet connection.
 ///
-/// This does NOT use an explicit unscoped "block everything" RULE — Windows
-/// Firewall evaluates explicit Block rules before explicit Allow rules, so an
-/// unscoped Block rule always wins over any narrower Allow rule regardless of
-/// specificity. An earlier version of this class did exactly that (one rule
-/// blocking all outbound, one allowing the relay's IP) and it blocked
-/// essentially all real traffic, including to the relay itself, once enabled.
+/// This does NOT use an explicit unscoped "block everything" RULE to avoid 
+/// blocking all traffic including to the relay.
 /// Instead, this flips the *default outbound policy* to Block: default-policy
-/// fallback is evaluated after explicit rules, so narrow Allow rules below
-/// correctly take effect.
+/// Now we have to rules one to allow encrypted traffic to connect to the relay, and 
+/// and another to allow all traffic through the tunnel.
 /// </summary>
 public class KillSwitchService
 {
@@ -37,7 +33,7 @@ public class KillSwitchService
         var tunnelAddress = tunnelIp.Split('/')[0];
 
         // Assumes the user hasn't customized inbound policy away from Windows'
-        // standard default (blockinbound) -- true for the vast majority of
+        // standard default (blockinbound), true for the vast majority of
         // machines. netsh only sets both directions together.
         RunNetsh("advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound");
 

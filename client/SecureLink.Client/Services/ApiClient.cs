@@ -12,16 +12,12 @@ public class ApiClient
     // The backend runs on the US relay droplet with a self-signed cert (no domain
     // name to get a trusted one for — see AppConfig.cs). Rather than disabling
     // certificate validation entirely (which would accept ANY cert from anywhere,
-    // defeating TLS), pin to this specific certificate's SHA-256 thumbprint so only
-    // *this* known cert is accepted. Regenerate this if the server's cert is ever
-    // rotated (e.g. after switching to a real domain + Let's Encrypt, this whole
-    // pinning block should be removed instead).
+    // defeating TLS), we trust to only this specific certificate
     private const string PinnedCertThumbprint =
         "053F1809D67ED37B2A4AD5C3371CB70D0DE4994626886CC56DEA2CCCAD6D8713";
 
     private readonly HttpClient _http;
 
-    // TODO (Phase 4): load from Windows Credential Manager instead of a field.
     public string? AuthToken { get; set; }
 
     public ApiClient(string baseUrl)
@@ -33,12 +29,7 @@ public class ApiClient
                 cert.GetCertHashString(System.Security.Cryptography.HashAlgorithmName.SHA256)
                     .Equals(PinnedCertThumbprint.Replace(" ", ""), StringComparison.OrdinalIgnoreCase),
         };
-        // HttpClient's default Timeout is 100 seconds -- far too long for a UI to sit
-        // frozen on a single slow/hung request (this link has been observed needing
-        // multiple TLS renegotiations, and a request over the VPN tunnel itself is
-        // inherently less predictable than a normal LAN call). Every call site treats
-        // a failure here as recoverable, so failing fast is strictly better than
-        // making the user wait to find out.
+        // HttpClient's default Timeout is 100 seconds so we change it to 10sec, its better to fail quickly then wait for long and still fail.
         _http = new HttpClient(handler) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(10) };
     }
 
@@ -49,9 +40,7 @@ public class ApiClient
     }
 
     // response.EnsureSuccessStatusCode() only ever surfaces the status code (e.g.
-    // "409 (Conflict)"), throwing away the backend's actual message ("An account
-    // with that email already exists."). Read the body instead so callers show
-    // users something they can act on.
+    // "409 (Conflict)"), not showing actuall backend error, this ensures the proper message is returned
     private static async Task EnsureSuccessWithMessageAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode) return;
