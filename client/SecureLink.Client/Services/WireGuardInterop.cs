@@ -53,18 +53,27 @@ public class WireGuardInterop
 
     public void TearDownTunnel()
     {
+        InvalidOperationException? uninstallError = null;
         try
         {
             Run(WireGuardExe, $"/uninstalltunnelservice {TunnelName}");
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            for (var i = 0; i < 10 && OrphanedTunnelServiceExists(); i++)
-                Thread.Sleep(500);
-
-            if (OrphanedTunnelServiceExists())
-                throw;
+            // Non-zero also happens when there was no service to remove, so this
+            // alone isn't a failure — the service check below decides.
+            uninstallError = ex;
         }
+
+        // Verify real removal regardless of the exit code: the service can linger
+        // briefly (marked for deletion) even after a successful uninstall, and a
+        // failed uninstall may still have removed it.
+        for (var i = 0; i < 10 && OrphanedTunnelServiceExists(); i++)
+            Thread.Sleep(500);
+
+        if (OrphanedTunnelServiceExists())
+            throw uninstallError ?? new InvalidOperationException(
+                $"Tunnel service WireGuardTunnel${TunnelName} still exists after uninstall.");
 
         if (File.Exists(_configPath))
             File.Delete(_configPath);

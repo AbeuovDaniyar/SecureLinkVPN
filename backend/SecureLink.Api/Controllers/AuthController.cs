@@ -26,17 +26,29 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest("Email and password are required.");
 
-        if (await _db.Users.AnyAsync(u => u.Email == req.Email))
+        // Emails are compared case-insensitively so "User@x.com" can't register
+        // alongside "user@x.com".
+        var email = req.Email.Trim();
+        if (await _db.Users.AnyAsync(u => u.Email.ToLower() == email.ToLower()))
             return Conflict("An account with that email already exists.");
 
         var user = new User
         {
-            Email = req.Email,
+            Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
         };
 
         _db.Users.Add(user);
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Two simultaneous registrations for the same email both passed the check
+            // above; the unique index (IX_Users_Email) rejected the second one.
+            return Conflict("An account with that email already exists.");
+        }
 
         var (token, expiresAt) = _tokens.GenerateToken(user);
         return Ok(new AuthResponse(token, expiresAt));
@@ -45,7 +57,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest req)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
+        var email = req.Email.Trim();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized("Invalid email or password.");
 

@@ -3,7 +3,7 @@ resource "digitalocean_ssh_key" "deploy_key" {
   public_key = var.ssh_public_key
 }
 
-# --- US relay (nyc3 — closest DO equivalent to "Virginia"/US-East) ---
+# --- US relay (nyc3 — New York, US-East) ---
 resource "digitalocean_droplet" "relay_us" {
   name     = "securelink-relay-us"
   region   = var.region_us

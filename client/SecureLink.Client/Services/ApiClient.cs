@@ -31,6 +31,15 @@ public class ApiClient
         };
         // HttpClient's default Timeout is 100 seconds so we change it to 10sec, its better to fail quickly then wait for long and still fail.
         _http = new HttpClient(handler) { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(10) };
+
+        // Open a fresh connection for every request instead of reusing a pooled one.
+        // A pooled connection keeps the route it was opened on: one opened while the
+        // tunnel was up (e.g. logging in right after a crash left the tunnel running)
+        // dies the moment the tunnel is torn down, and the next call on it fails with
+        // "connection forcibly closed" — which made startup cleanup skip closing the
+        // stale session, so the next Connect got 409. The client makes only a handful
+        // of calls, so the extra handshake per request costs nothing noticeable.
+        _http.DefaultRequestHeaders.ConnectionClose = true;
     }
 
     private void AttachAuth()

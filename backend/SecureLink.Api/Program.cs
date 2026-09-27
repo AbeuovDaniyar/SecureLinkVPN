@@ -17,7 +17,9 @@ var relays = builder.Configuration.GetSection("Relays").Get<List<RelayServer>>()
 builder.Services.AddSingleton<IReadOnlyList<RelayServer>>(relays);
 
 // --- App services ---
-builder.Services.AddHttpClient();
+// Relay management calls must answer well inside the client's 10s request timeout
+// (see ApiClient.cs), so a hung relay fails fast instead of stranding the session.
+builder.Services.AddHttpClient(RelayGatewayService.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(5));
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRelayGatewayService, RelayGatewayService>();
 

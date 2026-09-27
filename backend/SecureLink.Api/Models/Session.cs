@@ -7,7 +7,7 @@ public class Session
     public Guid UserId { get; set; }
     public User? User { get; set; }
 
-    public string Region { get; set; } = string.Empty;       // "virginia" | "germany"
+    public string Region { get; set; } = string.Empty;       // "newyork" | "germany"
     public string ClientPublicKey { get; set; } = string.Empty;
     public string TunnelIp { get; set; } = string.Empty;      // e.g. "10.8.0.5/32"
 

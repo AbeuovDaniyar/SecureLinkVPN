@@ -46,8 +46,7 @@ public class AdminController : ControllerBase
         if (session is null)
             return NotFound();
 
-        var relay = _relayGateway.GetRelay(session.Region);
-        await _relayGateway.RemovePeerAsync(relay, session.ClientPublicKey);
+        await _relayGateway.RemovePeerAsync(session.Region, session.ClientPublicKey);
         session.EndedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 

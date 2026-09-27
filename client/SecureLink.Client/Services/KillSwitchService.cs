@@ -7,10 +7,10 @@ namespace SecureLink.Client.Services;
 /// `netsh advfirewall`. If the tunnel drops, this is what stops other traffic from
 /// silently falling back to the raw internet connection.
 ///
-/// This does NOT use an explicit unscoped "block everything" RULE to avoid 
+/// This does NOT use an explicit unscoped "block everything" RULE to avoid
 /// blocking all traffic including to the relay.
 /// Instead, this flips the *default outbound policy* to Block: default-policy
-/// Now we have to rules one to allow encrypted traffic to connect to the relay, and 
+/// Now we have to rules one to allow encrypted traffic to connect to the relay, and
 /// and another to allow all traffic through the tunnel.
 /// </summary>
 public class KillSwitchService
@@ -32,13 +32,17 @@ public class KillSwitchService
         var relayIp = relayEndpoint.Split(':')[0];
         var tunnelAddress = tunnelIp.Split('/')[0];
 
+        // Every step is checked: netsh fails silently without admin rights, and a kill
+        // switch that *reports* enabled while nothing is actually blocked is worse
+        // than none. A throw here lets MainWindow.ConnectAsync roll the connect back.
+        // Allow rules go in before the policy flips so the relay is never blocked.
+        RunNetshChecked($"advfirewall firewall add rule name=\"{RuleName}-allow-relay\" dir=out action=allow remoteip={relayIp} enable=yes");
+        RunNetshChecked($"advfirewall firewall add rule name=\"{RuleName}-allow-tunnel\" dir=out action=allow localip={tunnelAddress} enable=yes");
+
         // Assumes the user hasn't customized inbound policy away from Windows'
         // standard default (blockinbound), true for the vast majority of
         // machines. netsh only sets both directions together.
-        RunNetsh("advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound");
-
-        RunNetsh($"advfirewall firewall add rule name=\"{RuleName}-allow-relay\" dir=out action=allow remoteip={relayIp} enable=yes");
-        RunNetsh($"advfirewall firewall add rule name=\"{RuleName}-allow-tunnel\" dir=out action=allow localip={tunnelAddress} enable=yes");
+        RunNetshChecked("advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound");
 
         _enabled = true;
     }
@@ -52,14 +56,27 @@ public class KillSwitchService
     // harmless no-ops), so there's no cost to always attempting it.
     public void Disable()
     {
-        RunNetsh("advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound");
+        // Restoring outbound traffic is the part that matters; if it fails the user
+        // is left offline, so surface it rather than pretending it worked.
+        RunNetshChecked("advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound");
+
+        // Deleting a rule that doesn't exist exits non-zero ("No rules match") —
+        // expected on a clean machine, so these are not checked.
         RunNetsh($"advfirewall firewall delete rule name=\"{RuleName}-allow-relay\"");
         RunNetsh($"advfirewall firewall delete rule name=\"{RuleName}-allow-tunnel\"");
 
         _enabled = false;
     }
 
-    private static void RunNetsh(string args)
+    private static void RunNetshChecked(string args)
+    {
+        var exitCode = RunNetsh(args);
+        if (exitCode != 0)
+            throw new InvalidOperationException(
+                $"netsh {args} failed (exit code {exitCode}) — is the app running as Administrator?");
+    }
+
+    private static int RunNetsh(string args)
     {
         var psi = new ProcessStartInfo("netsh", args)
         {
@@ -69,5 +86,6 @@ public class KillSwitchService
         };
         using var process = Process.Start(psi);
         process?.WaitForExit();
+        return process?.ExitCode ?? -1;
     }
 }

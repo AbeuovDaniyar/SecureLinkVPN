@@ -21,10 +21,8 @@ variable "wireguard_port" {
   default     = 51820
 }
 
-# NOTE on region naming: DigitalOcean has no region literally named "Virginia" —
-# nyc1/nyc3 (New York) is the closest US-East equivalent by latency. If your
-# design docs say "Virginia" specifically, update them to say "US-East (New
-# York)" for accuracy — see BUILD_GUIDE.md Phase 1 note.
+# The US relay lives in nyc3 (New York, US-East). The backend and client call
+# this region "newyork" (see appsettings.json Relays and MainWindow.Regions).
 variable "region_us" {
   description = "DigitalOcean region slug for the US relay."
   type        = string

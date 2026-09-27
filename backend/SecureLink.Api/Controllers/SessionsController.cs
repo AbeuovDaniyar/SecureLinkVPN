@@ -29,7 +29,7 @@ public class SessionsController : ControllerBase
     [HttpPost("connect")]
     public async Task<IActionResult> Connect(ConnectRequest req)
     {
-        // One active session per user at a time — matches FR-3/FR-15 in the SRS.
+        // One active session per user at a time
         var existing = await _db.Sessions
             .Where(s => s.UserId == CurrentUserId && s.EndedAt == null)
             .FirstOrDefaultAsync();
@@ -51,9 +51,26 @@ public class SessionsController : ControllerBase
             .Select(s => s.TunnelIp)
             .ToListAsync();
 
-        var tunnelIp = _relayGateway.AssignTunnelIp(relay, ipsInUse);
+        string tunnelIp;
+        try
+        {
+            tunnelIp = _relayGateway.AssignTunnelIp(relay, ipsInUse);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Relay's subnet is full.
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, ex.Message);
+        }
 
-        await _relayGateway.AddPeerAsync(relay, req.ClientPublicKey, tunnelIp);
+        try
+        {
+            await _relayGateway.AddPeerAsync(relay, req.ClientPublicKey, tunnelIp);
+        }
+        catch (RelayUnavailableException ex)
+        {
+            // Nothing has been saved yet, so there's no session to roll back.
+            return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
+        }
 
         var session = new Session
         {
@@ -84,8 +101,7 @@ public class SessionsController : ControllerBase
 
         if (session.IsActive)
         {
-            var relay = _relayGateway.GetRelay(session.Region);
-            await _relayGateway.RemovePeerAsync(relay, session.ClientPublicKey);
+            await _relayGateway.RemovePeerAsync(session.Region, session.ClientPublicKey);
             session.EndedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
         }

@@ -13,7 +13,7 @@ public partial class MainWindow : Window
 
     private static readonly (string Tag, string Label)[] Regions =
     [
-        ("virginia", "🇺🇸 Virginia (US-East)"),
+        ("newyork", "🇺🇸 New York (US-East)"),
         ("germany", "🇩🇪 Germany (EU-Central)"),
     ];
 
@@ -67,6 +67,22 @@ public partial class MainWindow : Window
     // you're still connected, which then rejects the next Connect with 409.
     private async Task CleanupOrphanedStateAsync()
     {
+        // Keep Connect locked until cleanup finishes — connecting mid-cleanup would
+        // race the teardown below against a brand-new tunnel/session.
+        SetUiState(ConnState.Connecting);
+        StatusText.Text = "Checking for leftovers...";
+        try
+        {
+            await CleanupOrphanedStateCoreAsync();
+        }
+        finally
+        {
+            SetUiState(ConnState.Disconnected);
+        }
+    }
+
+    private async Task CleanupOrphanedStateCoreAsync()
+    {
         try
         {
             if (await Task.Run(() => _wireGuard.OrphanedTunnelServiceExists()))
@@ -85,7 +101,15 @@ public partial class MainWindow : Window
 
         // Safe to call even if no rules exist — KillSwitchService.Disable() no-ops
         // when there's nothing to remove.
-        await Task.Run(() => _killSwitch.Disable());
+        try
+        {
+            await Task.Run(() => _killSwitch.Disable());
+        }
+        catch (Exception ex)
+        {
+            Log($"Warning: couldn't reset kill switch firewall rules ({ex.Message}). " +
+                "Make sure you're running as Administrator.");
+        }
 
         try
         {
@@ -140,8 +164,10 @@ public partial class MainWindow : Window
             ));
             tunnelUp = true;
 
-            await Task.Run(() => _killSwitch.Enable(result.RelayEndpoint, result.TunnelIp));
+            // Flagged before Enable() so a failure partway through (some rules added,
+            // policy not flipped) still gets rolled back — Disable() is idempotent.
             killSwitchUp = true;
+            await Task.Run(() => _killSwitch.Enable(result.RelayEndpoint, result.TunnelIp));
 
             _activeSessionId = result.SessionId;
             _connected = true;
