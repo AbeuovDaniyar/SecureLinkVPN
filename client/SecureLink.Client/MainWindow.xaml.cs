@@ -158,7 +158,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            Log($"Warning: couldn't reset kill switch firewall rules ({ex.Message}). " +
+            Log($"Warning: couldn't reset kill switch firewall rules ({ex.Message}). " +                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
                 "Make sure you're running as Administrator.");
         }
 
