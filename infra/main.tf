@@ -34,8 +34,8 @@ resource "digitalocean_firewall" "relay_us_fw" {
     port_range       = tostring(var.wireguard_port)
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
-  # SecureLink backend API (co-located here instead of a dedicated server —
-  # see BUILD_GUIDE.md's deployment note). Client reaches this from anywhere.
+  # SecureLink backend API (co-located here instead of a dedicated server).
+  # Client reaches this from anywhere.
   inbound_rule {
     protocol         = "tcp"
     port_range       = "443"

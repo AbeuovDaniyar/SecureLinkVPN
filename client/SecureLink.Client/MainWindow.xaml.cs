@@ -21,14 +21,21 @@ public partial class MainWindow : Window
     private readonly WireGuardInterop _wireGuard = new();
     private readonly KillSwitchService _killSwitch = new();
     private readonly DispatcherTimer _statsTimer;
+    private readonly DispatcherTimer _sessionTimer;
 
     private Guid? _activeSessionId;
     private bool _connected;
     private int _regionIndex;
     private DateTime _connectedSinceUtc;
 
+    // Tunnel health (see TunnelHealth): checked every few stats ticks while connected.
+    private const int HealthCheckEveryTicks = 5;
+    private int _ticksSinceHealthCheck;
+    private bool _connectionLost;
+    private string _connectedStatus = "";
+
     // _api arrives already authenticated — LoginWindow calls ApiClient.LoginAsync
-    // (which sets AuthToken) before constructing this window.
+    // (or restores a saved sign-in) before constructing this window.
     public MainWindow(ApiClient api)
     {
         InitializeComponent();
@@ -37,12 +44,56 @@ public partial class MainWindow : Window
         _statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _statsTimer.Tick += StatsTimer_Tick;
 
+        // Runs whether or not a tunnel is up: keeps the sign-in token fresh so a
+        // session left connected for hours can still be disconnected cleanly.
+        _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _sessionTimer.Tick += async (_, _) => await KeepSignInFreshAsync();
+        _sessionTimer.Start();
+        Closed += (_, _) => _sessionTimer.Stop();
+
         Loaded += async (_, _) => await CleanupOrphanedStateAsync();
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    private async Task KeepSignInFreshAsync()
+    {
+        try
+        {
+            await _api.RefreshTokenIfExpiringAsync(TimeSpan.FromMinutes(15));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // The backend no longer accepts this sign-in. While connected, leave the
+            // tunnel alone (local disconnect still works) and just say so; otherwise
+            // go back to the sign-in window.
+            if (_connected)
+                Log($"{ex.Message} Disconnect first, then sign in again.");
+            else
+                ReturnToSignIn();
+        }
+        catch (Exception)
+        {
+            // Backend briefly unreachable — try again on the next tick.
+        }
+    }
+
+    private void SignOut_Click(object sender, RoutedEventArgs e) => ReturnToSignIn();
+
+    // Forgets the saved sign-in and shows the sign-in window again. The button is
+    // only enabled while disconnected, so there is never a tunnel to tear down here.
+    private void ReturnToSignIn()
+    {
+        _sessionTimer.Stop();
+        _api.SignOut();
+
+        var login = new LoginWindow();
+        login.Show();
+        System.Windows.Application.Current.MainWindow = login;
+        Close();
+    }
 
     private void PrevRegion_Click(object sender, RoutedEventArgs e)
     {
@@ -299,6 +350,53 @@ public partial class MainWindow : Window
             // Tunnel may be mid-teardown or briefly unavailable — just skip this tick
             // rather than spamming the log with a transient stats-read failure.
         }
+
+        if (++_ticksSinceHealthCheck >= HealthCheckEveryTicks)
+        {
+            _ticksSinceHealthCheck = 0;
+            CheckTunnelHealth();
+        }
+    }
+
+    // WireGuard has no "connected" state: if the relay stops answering, the tunnel
+    // service keeps running and nothing here would notice. The kill switch still
+    // blocks all traffic, so nothing leaks — but without this check the window would
+    // keep saying "Connected" while the user's internet is simply dead.
+    private void CheckTunnelHealth()
+    {
+        TunnelHealthState health;
+        try
+        {
+            health = TunnelHealth.Evaluate(_wireGuard.GetLatestHandshakeUtc(), _connectedSinceUtc, DateTime.UtcNow);
+        }
+        catch
+        {
+            return; // same as the stats read above: skip this round
+        }
+
+        if (health == TunnelHealthState.Lost && !_connectionLost)
+        {
+            _connectionLost = true;
+            var error = (System.Windows.Media.Brush)FindResource("ErrorBrush");
+            StatusText.Text = "Connection lost";
+            StatusText.Foreground = error;
+            PowerIcon.Foreground = error;
+            ConnectedRing.Stroke = error;
+            GlowEllipse.Opacity = 0;
+            Log("The relay has stopped responding. The kill switch is blocking your traffic, so nothing is leaking. " +
+                "Click the power button to disconnect, then connect again.");
+        }
+        else if (health == TunnelHealthState.Healthy && _connectionLost)
+        {
+            _connectionLost = false;
+            var accent = (System.Windows.Media.Brush)FindResource("AccentBrush");
+            StatusText.Text = _connectedStatus;
+            StatusText.Foreground = accent;
+            PowerIcon.Foreground = accent;
+            ConnectedRing.Stroke = accent;
+            GlowEllipse.Opacity = 0.85;
+            Log("Connection restored.");
+        }
     }
 
     private static string FormatBytes(long bytes)
@@ -335,6 +433,8 @@ public partial class MainWindow : Window
                 PrevRegionButton.IsEnabled = true;
                 NextRegionButton.IsEnabled = true;
                 ConnectButton.IsEnabled = true;
+                SignOutButton.IsEnabled = true;
+                _connectionLost = false;
                 _statsTimer.Stop();
                 DownloadedText.Text = "0 B";
                 UploadedText.Text = "0 B";
@@ -352,14 +452,20 @@ public partial class MainWindow : Window
                 PrevRegionButton.IsEnabled = false;
                 NextRegionButton.IsEnabled = false;
                 ConnectButton.IsEnabled = false;
+                SignOutButton.IsEnabled = false;
                 _statsTimer.Stop();
                 break;
 
             case ConnState.Connected:
-                StatusText.Text = $"Connected — {regionLabel}";
+                _connectedStatus = $"Connected — {regionLabel}";
+                _connectionLost = false;
+                _ticksSinceHealthCheck = 0;
+                StatusText.Text = _connectedStatus;
                 StatusText.Foreground = accent;
                 SpinnerRing.Visibility = Visibility.Collapsed;
                 ConnectedRing.Visibility = Visibility.Visible;
+                ConnectedRing.Stroke = accent;
+                SignOutButton.IsEnabled = false;
                 PowerIcon.Foreground = accent;
                 spin.Stop(this);
                 pulse.Stop(this);

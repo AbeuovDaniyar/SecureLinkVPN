@@ -13,6 +13,49 @@ public partial class LoginWindow : Window
     public LoginWindow()
     {
         InitializeComponent();
+        Loaded += async (_, _) => await TryResumeSessionAsync();
+    }
+
+    // If a previous run left a sign-in token in Windows Credential Manager and the
+    // backend still accepts it, skip the form entirely. Any failure just leaves the
+    // normal sign-in form on screen.
+    private async Task TryResumeSessionAsync()
+    {
+        SubmitButton.IsEnabled = false;
+        ToggleModeButton.IsEnabled = false;
+        StatusText.Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush");
+        StatusText.Text = "Signing you in...";
+
+        var resumed = false;
+        try
+        {
+            resumed = await _api.TryRestoreSessionAsync();
+        }
+        catch (Exception)
+        {
+            // Treated the same as "no saved sign-in".
+        }
+
+        if (resumed)
+        {
+            OpenMainWindow();
+            return;
+        }
+
+        StatusText.Text = "";
+        SubmitButton.IsEnabled = true;
+        ToggleModeButton.IsEnabled = true;
+    }
+
+    private void OpenMainWindow()
+    {
+        var main = new MainWindow(_api);
+        main.Show();
+
+        // Swap this window out as the application's main window before closing it,
+        // so the app doesn't shut down when LoginWindow.Close() runs.
+        System.Windows.Application.Current.MainWindow = main;
+        Close();
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();
@@ -67,13 +110,7 @@ public partial class LoginWindow : Window
             else
                 await _api.LoginAsync(email, password);
 
-            var main = new MainWindow(_api);
-            main.Show();
-
-            // Swap this window out as the application's main window before closing it,
-            // so the app doesn't shut down when LoginWindow.Close() runs.
-            System.Windows.Application.Current.MainWindow = main;
-            Close();
+            OpenMainWindow();
         }
         catch (Exception ex)
         {

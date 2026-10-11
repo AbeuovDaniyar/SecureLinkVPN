@@ -86,6 +86,9 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Opacity" Value="0.8"/>
                         </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35"/>
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

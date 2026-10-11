@@ -37,6 +37,10 @@
             <TextBlock Text="SecureLink" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- Forgets the saved sign-in (Windows Credential Manager) and returns to
+                     the sign-in window. Disabled while a tunnel is up or changing. -->
+                <Button x:Name="SignOutButton" Content="Sign out" FontSize="11" Margin="0,0,10,0"
+                        Style="{StaticResource LinkButton}" VerticalAlignment="Center" Click="SignOut_Click"/>
                 <Button Content="&#xE921;" FontFamily="Segoe MDL2 Assets" Width="32" Height="32"
                         Style="{StaticResource TitleBarButtonStyle}" Click="Minimize_Click"/>
                 <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Width="32" Height="32"

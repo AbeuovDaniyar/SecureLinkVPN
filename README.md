@@ -4,7 +4,7 @@ A Windows VPN client built on WireGuard, with an ASP.NET Core backend and two gl
 
 ## What it does
 
-- **Desktop Client (WPF):** Establishes a WireGuard tunnel to a relay of your choice (US-East or Germany) with an integrated kill switch that blocks unencrypted outbound traffic while connected.
+- **Desktop Client (WPF):** Establishes a WireGuard tunnel to a relay of your choice (US-East or Germany) with an integrated kill switch that blocks unencrypted outbound traffic while connected. Stays signed in between launches using Windows Credential Manager, and warns you if the relay stops responding.
 - **Backend API:** Manages user authentication (JWT), enforces single-session limits per account, and handles WireGuard peer setup across relay nodes. The client handles key generation locally; private keys are never transmitted to the server.
 - **Relay Infrastructure:** Two DigitalOcean droplets (`nyc3` in US-East and `fra1` in Germany) handle traffic routing.
 

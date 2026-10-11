@@ -1,3 +1,6 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureLink.Api.Data;
@@ -61,6 +64,28 @@ public class AuthController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized("Invalid email or password.");
+
+        var (token, expiresAt) = _tokens.GenerateToken(user);
+        return Ok(new AuthResponse(token, expiresAt));
+    }
+
+    // Swaps the caller's still-valid token for a fresh one. Tokens are short-lived
+    // (Jwt:AccessTokenMinutes), so without this a client that stays signed in — or
+    // simply stays connected for longer than one token lifetime — would have its
+    // later calls (including Disconnect) rejected. An expired or tampered token never
+    // reaches this method: [Authorize] answers 401 first. The user is re-read from
+    // the database so a deleted account or a changed admin flag takes effect here.
+    [Authorize]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh()
+    {
+        var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!Guid.TryParse(sub, out var userId))
+            return Unauthorized();
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null)
+            return Unauthorized();
 
         var (token, expiresAt) = _tokens.GenerateToken(user);
         return Ok(new AuthResponse(token, expiresAt));

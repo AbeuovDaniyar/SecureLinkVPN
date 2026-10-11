@@ -98,10 +98,25 @@ public class WireGuardInterop
         return process.ExitCode == 0;
     }
 
+    /// <summary>
+    /// When the tunnel last completed a handshake with the relay (UTC), or null if
+    /// it hasn't yet. Read from `wg show securelink latest-handshakes`
+    /// (format: "&lt;peer-pubkey&gt;	&lt;unix-seconds&gt;", 0 = never).
+    /// </summary>
+    public DateTime? GetLatestHandshakeUtc()
+    {
+        var output = RunAndCapture(WgExe, args: ["show", TunnelName, "latest-handshakes"]).Trim();
+        var parts = output.Split('	');
+        if (parts.Length < 2 || !long.TryParse(parts[1], out var unixSeconds) || unixSeconds <= 0)
+            return null;
+        return DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+    }
+
+    /// <summary>True while the relay has answered within TunnelHealth.StaleAfter.</summary>
     public bool IsHandshakeActive()
     {
-        var output = RunAndCapture(WgExe, args: ["show", TunnelName, "latest-handshakes"]);
-        return !string.IsNullOrWhiteSpace(output);
+        var last = GetLatestHandshakeUtc();
+        return last is not null && DateTime.UtcNow - last.Value <= TunnelHealth.StaleAfter;
     }
 
     /// <summary>
