@@ -57,15 +57,19 @@ public class WireGuardInterop
     public void TearDownTunnel()
     {
         InvalidOperationException? uninstallError = null;
-        try
+        // Only ask WireGuard to remove a tunnel that exists. It may already be gone
+        // (removed by hand, or by WireGuard's own app), and there is nothing to do then.
+        if (OrphanedTunnelServiceExists())
         {
-            Run(WireGuardExe, $"/uninstalltunnelservice {TunnelName}");
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Non-zero also happens when there was no service to remove, so this
-            // alone isn't a failure — the service check below decides.
-            uninstallError = ex;
+            try
+            {
+                Run(WireGuardExe, $"/uninstalltunnelservice {TunnelName}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                // A non-zero exit alone isn't a failure — the service check below decides.
+                uninstallError = ex;
+            }
         }
 
         // Verify real removal regardless of the exit code: the service can linger
@@ -137,17 +141,31 @@ public class WireGuardInterop
 
     private static void Run(string exe, string args)
     {
+        // Both output streams are captured on purpose. wireguard.exe reports a failure
+        // by writing to its error stream if it has one, and otherwise by opening a
+        // modal "Error" message box and waiting for someone to click OK — which froze
+        // this app on "Disconnecting..." behind a dialog the user didn't expect. With
+        // the streams redirected it never shows that box, and its real reason for
+        // failing ends up in our own error message instead.
         var psi = new ProcessStartInfo(exe, args)
         {
             UseShellExecute = false,
             CreateNoWindow = true,
-            Verb = "runas",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
         };
-        using var process = Process.Start(psi);
-        process?.WaitForExit();
+        using var process = Process.Start(psi)!;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
 
-        if (process is not null && process.ExitCode != 0)
-            throw new InvalidOperationException($"{exe} {args} failed (exit code {process.ExitCode}).");
+        if (process.ExitCode != 0)
+        {
+            var reason = (stderr.Result + " " + stdout.Result).Trim();
+            throw new InvalidOperationException(reason.Length > 0
+                ? $"WireGuard reported: {reason}"
+                : $"{exe} {args} failed (exit code {process.ExitCode}).");
+        }
     }
 
     private static string RunAndCapture(string exe, string? stdin = null, params string[] args)
