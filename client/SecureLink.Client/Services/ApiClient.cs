@@ -72,9 +72,9 @@ public class ApiClient
         AcceptToken((await response.Content.ReadFromJsonAsync<AuthResponseDto>())!);
     }
 
-    public async Task RegisterAsync(string email, string password)
+    public async Task RegisterAsync(string email, string password, string? inviteCode = null)
     {
-        var response = await _http.PostAsJsonAsync("/api/auth/register", new { email, password });
+        var response = await _http.PostAsJsonAsync("/api/auth/register", new { email, password, inviteCode });
         await EnsureSuccessWithMessageAsync(response);
         AcceptToken((await response.Content.ReadFromJsonAsync<AuthResponseDto>())!);
     }

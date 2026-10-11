@@ -1,6 +1,7 @@
 namespace SecureLink.Api.Dtos;
 
-public record RegisterRequest(string Email, string Password);
+// InviteCode is only checked when the server has Registration:InviteCode configured.
+public record RegisterRequest(string Email, string Password, string? InviteCode = null);
 
 public record LoginRequest(string Email, string Password);
 

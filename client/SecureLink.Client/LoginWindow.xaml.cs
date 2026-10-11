@@ -69,6 +69,8 @@ public partial class LoginWindow : Window
         SubmitButton.Content = _isRegisterMode ? "Sign up" : "Log in";
         ToggleModeButton.Content = _isRegisterMode ? "Already have an account? Log in" : "Don't have an account? Sign up";
         ConfirmPasswordPanel.Visibility = _isRegisterMode ? Visibility.Visible : Visibility.Collapsed;
+        // The sign-up form has two more fields than sign-in; grow the window to fit them.
+        Height = _isRegisterMode ? 620 : 500;
         StatusText.Text = "";
     }
 
@@ -98,6 +100,14 @@ public partial class LoginWindow : Window
             return;
         }
 
+        var inviteCode = InviteCodeBox.Text.Trim();
+        if (_isRegisterMode && inviteCode.Length == 0)
+        {
+            StatusText.Foreground = (System.Windows.Media.Brush)FindResource("ErrorBrush");
+            StatusText.Text = "Enter your invite code.";
+            return;
+        }
+
         SubmitButton.IsEnabled = false;
         ToggleModeButton.IsEnabled = false;
         StatusText.Text = _isRegisterMode ? "Creating account..." : "Logging in...";
@@ -106,7 +116,7 @@ public partial class LoginWindow : Window
         try
         {
             if (_isRegisterMode)
-                await _api.RegisterAsync(email, password);
+                await _api.RegisterAsync(email, password, inviteCode);
             else
                 await _api.LoginAsync(email, password);
 

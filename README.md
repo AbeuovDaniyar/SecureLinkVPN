@@ -40,44 +40,45 @@ docs/                        Design documentation (project proposal, SRS, SDD)
 
 ## Quick Start — Running the Client
 
-### Prerequisites
+### Download (easiest)
 
-- Windows 10/11 (64-bit)
-- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [WireGuard for Windows](https://www.wireguard.com/install/)
-- Administrator privileges (required for interface management and firewall rules)
+1. Download the latest `SecureLink-Client-…-win-x64.zip` from the [Releases page](https://github.com/AbeuovDaniyar/SecureLinkVPN/releases) and unzip it.
+2. Install [WireGuard for Windows](https://www.wireguard.com/install/) if you don't have it. (If it's missing, SecureLink tells you and opens the download page.)
+3. Double-click `SecureLink.Client.exe` and accept the Windows administrator prompt.
 
-### Build and Run
+Notes:
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/AbeuovDaniyar/SecureLinkVPN.git
-   cd SecureLinkVPN/client/SecureLink.Client
-   ```
-
-2. Build the project:
-   ```bash
-   dotnet build -c Release
-   ```
-
-3. Launch the executable as Administrator:
-   ```cmd
-   bin\Release\net8.0-windows\SecureLink.Client.exe
-   ```
+- **No .NET install needed** — the download includes it.
+- **Windows 10/11, 64-bit.**
+- **"Windows protected your PC"** may appear the first time, because the app isn't code-signed. Click **More info → Run anyway**.
+- **Administrator rights** are required because the app creates a network tunnel and changes Windows Firewall rules. The app asks for them itself.
 
 ### Usage
 
-1. Open the application and register a new account or sign in.
-2. Select a server location (US / Germany).
-3. Click the connect button to establish the WireGuard tunnel.
-4. Monitor connection statistics and active session metrics directly from the UI.
+1. Sign in, or choose **Sign up**. Signing up needs an **invite code** — the relays are small private servers, so accounts are by invitation.
+2. Select a server location (New York / Germany).
+3. Click the power button to connect.
+4. Watch the session time and data usage in the window. If the relay ever stops responding, the status changes to **Connection lost**.
+
+You stay signed in between launches (the sign-in token is kept in Windows Credential Manager). Use **Sign out** in the title bar to forget it.
+
+### Build from source
+
+Requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) and WireGuard for Windows.
+
+```bash
+git clone https://github.com/AbeuovDaniyar/SecureLinkVPN.git
+cd SecureLinkVPN/client/SecureLink.Client
+dotnet build -c Release
+bin\Release\net8.0-windows\SecureLink.Client.exe
+```
 
 ## Self-Hosting & Deployment
 
 To deploy your own backend infrastructure:
 
 1. **Infrastructure:** Provision relay nodes using the Terraform files in `infra/`.
-2. **Database & API:** Configure PostgreSQL and launch the API service located in `backend/SecureLink.Api/`.
+2. **Database & API:** Configure PostgreSQL and launch the API service located in `backend/SecureLink.Api/`. Set `Registration:InviteCode` in the API's configuration to require an invite code at sign-up (leave it empty for open registration).
 3. **Client Configuration:** Update `AppConfig.cs` in the client directory with your backend endpoint and SSL certificate details.
 
 ## Technical Specifications

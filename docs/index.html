@@ -370,7 +370,7 @@ _http.DefaultRequestHeaders.ConnectionClose = true;</pre>
 <section id="run">
   <div class="wrap">
     <h2>Run it</h2>
-    <p class="sub">The client is a Windows desktop app. It needs Administrator rights because it manages a network interface and firewall rules.</p>
+    <p class="sub">The client is a Windows desktop app. It asks for Administrator rights when it starts, because it manages a network interface and firewall rules.</p>
     <div class="grid2">
       <div class="card">
         <h3>You need</h3>
@@ -378,7 +378,7 @@ _http.DefaultRequestHeaders.ConnectionClose = true;</pre>
           <li>Windows 10 or 11 (64-bit)</li>
           <li><a href="https://dotnet.microsoft.com/download/dotnet/8.0">.NET 8 SDK</a></li>
           <li><a href="https://www.wireguard.com/install/">WireGuard for Windows</a></li>
-          <li>A SecureLink account (register in the app)</li>
+          <li>A SecureLink account — sign-up in the app needs an invite code, because the relays are private servers</li>
         </ul>
       </div>
       <div class="card">
@@ -386,7 +386,7 @@ _http.DefaultRequestHeaders.ConnectionClose = true;</pre>
         <ul class="clean">
           <li>Clone the repository and open <code class="inline">client/SecureLink.Client</code></li>
           <li>Run <code class="inline">dotnet build -c Release</code></li>
-          <li>Start <code class="inline">SecureLink.Client.exe</code> as Administrator</li>
+          <li>Start <code class="inline">SecureLink.Client.exe</code> and accept the Windows admin prompt</li>
           <li>Sign in, pick New York or Germany, press Connect</li>
         </ul>
       </div>

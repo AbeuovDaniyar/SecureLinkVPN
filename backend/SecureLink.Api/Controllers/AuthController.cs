@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +18,30 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ITokenService _tokens;
+    private readonly IConfiguration _config;
 
-    public AuthController(AppDbContext db, ITokenService tokens)
+    public AuthController(AppDbContext db, ITokenService tokens, IConfiguration config)
     {
         _db = db;
         _tokens = tokens;
+        _config = config;
+    }
+
+    // Sign-up is by invitation. The relays are small, privately paid-for servers, and
+    // every account can send traffic out through them — so a public download link must
+    // not mean that anyone at all can register. When Registration:InviteCode is set,
+    // a registration has to present the same code; when it's empty (local development),
+    // registration is open.
+    private bool InviteCodeAccepted(string? supplied)
+    {
+        var required = _config["Registration:InviteCode"];
+        if (string.IsNullOrEmpty(required))
+            return true;
+
+        // Constant-time comparison, so response timing can't be used to guess the code.
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes((supplied ?? string.Empty).Trim()),
+            Encoding.UTF8.GetBytes(required));
     }
 
     [HttpPost("register")]
@@ -28,6 +49,9 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest("Email and password are required.");
+
+        if (!InviteCodeAccepted(req.InviteCode))
+            return StatusCode(StatusCodes.Status403Forbidden, "A valid invite code is required to sign up.");
 
         // Emails are compared case-insensitively so "User@x.com" can't register
         // alongside "user@x.com".

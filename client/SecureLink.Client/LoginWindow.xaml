@@ -47,6 +47,14 @@
                     <PasswordBox x:Name="ConfirmPasswordBox" Style="{StaticResource DarkPasswordBox}"
                                  KeyDown="PasswordBox_KeyDown"/>
                 </Border>
+
+                <!-- Sign-up is by invitation: the backend only accepts a registration
+                     that carries the code configured on the server. -->
+                <TextBlock Text="INVITE CODE" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextSecondaryBrush}" Margin="2,0,0,6"/>
+                <Border Style="{StaticResource DarkFieldContainer}" Margin="0,0,0,16">
+                    <TextBox x:Name="InviteCodeBox" Style="{StaticResource DarkTextBox}" CharacterCasing="Upper"/>
+                </Border>
             </StackPanel>
 
             <Button x:Name="SubmitButton" Content="Log in" Height="42" Margin="0,8,0,0"

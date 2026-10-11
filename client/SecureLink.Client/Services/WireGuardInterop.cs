@@ -13,6 +13,9 @@ public class WireGuardInterop
     private const string WireGuardExe = @"C:\Program Files\WireGuard\wireguard.exe";
     private const string WgExe = @"C:\Program Files\WireGuard\wg.exe";
     private const string TunnelName = "securelink";
+
+    /// <summary>True when both WireGuard programs this class drives are present.</summary>
+    public static bool IsInstalled => File.Exists(WireGuardExe) && File.Exists(WgExe);
     private readonly string _configPath = Path.Combine(Path.GetTempPath(), $"{TunnelName}.conf");
 
     public (string privateKey, string publicKey) GenerateKeyPair()
